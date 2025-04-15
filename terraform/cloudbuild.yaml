@@ -1,0 +1,25 @@
+steps:
+  # Run Terraform commands
+  - name: 'hashicorp/terraform:1.7.0'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd terraform
+        terraform fmt -check -recursive
+        terraform validate
+        terraform init -backend-config="bucket=gcp-doe-iac-state" -backend-config="prefix=terraform/state"
+        terraform plan -out=tfplan
+
+  # Store the plan as an artifact
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', 'terraform/tfplan', 'gs://gcp-doe-iac-state/terraform/plans/$${BUILD_ID}-plan']
+
+artifacts:
+  objects:
+    location: 'gs://gcp-doe-iac-state/terraform/plans/'
+    paths: ['terraform/tfplan']
+
+timeout: '1200s'
+options:
+  logging: CLOUD_LOGGING_ONLY 
